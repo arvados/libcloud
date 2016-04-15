@@ -91,7 +91,7 @@ class AzureResourceManagementConnection(ConnectionUserAndKey):
         Log in and get bearer token used to authorize API requests.
         """
 
-        conn = self.conn_classes[1](self.login_host, 443)
+        conn = self.conn_classes[1](self.login_host, 443, timeout=self.timeout)
         conn.connect()
         params = urlencode({
             "grant_type": "client_credentials",
@@ -116,7 +116,7 @@ class AzureResourceManagementConnection(ConnectionUserAndKey):
         # Log in again if the token has expired or is going to expire soon
         # (next 5 minutes).
         if (time.time() + 300) >= int(self.expires_on):
-            self.get_token_from_credentials(self)
+            self.get_token_from_credentials()
 
         return super(AzureResourceManagementConnection, self) \
             .request(action, params=params,
