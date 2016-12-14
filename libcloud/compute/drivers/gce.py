@@ -3918,8 +3918,10 @@ class GCENodeDriver(NodeDriver):
         self.connection.request_path = new_request_path
 
         request = '/global/licenses/%s' % (name)
-        response = self.connection.request(request, method='GET').object
-        self.connection.request_path = saved_request_path
+        try:
+            response = self.connection.request(request, method='GET').object
+        finally:
+            self.connection.request_path = saved_request_path
 
         return self._to_license(response)
 
