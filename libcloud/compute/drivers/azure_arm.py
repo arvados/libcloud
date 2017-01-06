@@ -60,7 +60,10 @@ class AzureVhdImage(NodeImage):
     """Represents a VHD node image that an Azure VM can boot from."""
 
     def __init__(self, storage_account, blob_container, name, driver):
-        urn = "https://%s.blob.core.windows.net/%s/%s" % (storage_account, blob_container, name)
+        urn = "https://%s.blob%s/%s/%s" % (storage_account,
+                                           driver.connection.storage_suffix,
+                                           blob_container,
+                                           name)
         super(AzureVhdImage, self).__init__(urn, name, driver)
 
     def __repr__(self):
@@ -461,7 +464,13 @@ class AzureNodeDriver(NodeDriver):
         n = 0
         while True:
             try:
-                instance_vhd = "https://%s.blob.core.windows.net/%s/%s-os_%i.vhd" % (ex_storage_account, ex_blob_container, name, n)
+                instance_vhd = "https://%s.blob%s" \
+                               "/%s/%s-os_%i.vhd" \
+                               % (ex_storage_account,
+                                  self.connection.storage_suffix,
+                                  ex_blob_container,
+                                  name,
+                                  n)
                 self._ex_delete_old_vhd(ex_resource_group, instance_vhd)
                 break
             except LibcloudError as e:
@@ -1103,7 +1112,8 @@ class AzureNodeDriver(NodeDriver):
             keys = self.ex_get_storage_account_keys(resource_group,
                                                     storageAccount)
             blobdriver = AzureBlobsStorageDriver(storageAccount,
-                                                 keys["key1"])
+                                                 keys["key1"],
+                                                 host="blob%s" % (self.connection.storage_suffix))
             blobdriver.delete_object(blobdriver.get_object(blobContainer,
                                                            blob))
             return True
