@@ -2985,10 +2985,14 @@ class BaseEC2NodeDriver(NodeDriver):
         tags = {'Name': kwargs['name']}
         if 'ex_metadata' in kwargs:
             tags.update(kwargs['ex_metadata'])
-        params['TagSpecification.1.ResourceType'] = 'instance'
-        params['TagSpecification.1.Tags'] = [
-            {'Key': k, 'Value': v} for k, v in tags.items()
-        ]
+        tagspec_root = 'TagSpecification.1.'
+        params[tagspec_root + 'ResourceType'] = 'instance'
+        tag_nr = 1
+        for k, v in tags.iteritems():
+            tag_root = tagspec_root + "Tags.{}.".format(tag_nr)
+            params[tag_root + "Key"] = k
+            params[tag_root + "Value"] = v
+            tag_nr += 1
 
         object = self.connection.request(self.path, params=params).object
         nodes = self._to_nodes(object, 'instancesSet/item')
