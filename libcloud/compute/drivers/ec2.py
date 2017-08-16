@@ -2981,19 +2981,19 @@ class BaseEC2NodeDriver(NodeDriver):
             if subnet_id:
                 params['SubnetId'] = subnet_id
 
+        # Specify tags at instance creation time
+        tags = {'Name': kwargs['name']}
+        if 'ex_metadata' in kwargs:
+            tags.update(kwargs['ex_metadata'])
+        params['TagSpecification.1.ResourceType'] = 'instance'
+        params['TagSpecification.1.Tags'] = [
+            {'Key': k, 'Value': v} for k, v in tags.items()
+        ]
+
         object = self.connection.request(self.path, params=params).object
         nodes = self._to_nodes(object, 'instancesSet/item')
 
         for node in nodes:
-            tags = {'Name': kwargs['name']}
-            if 'ex_metadata' in kwargs:
-                tags.update(kwargs['ex_metadata'])
-
-            try:
-                self.ex_create_tags(resource=node, tags=tags)
-            except Exception:
-                continue
-
             node.name = kwargs['name']
             node.extra.update({'tags': tags})
 
