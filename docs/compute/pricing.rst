@@ -14,7 +14,7 @@ Example below shows how to retrieve pricing for ``NodeSize`` objects using
 
 .. literalinclude:: /examples/compute/pricing.py
    :language: python
-   :emphasize-lines: 11-19
+   :emphasize-lines: 11-18
 
 As noted above this pricing information is an estimate and should only
 be used as such. You should always check your provider website / control panel
@@ -29,10 +29,10 @@ Where does the Libcloud pricing data come from?
 -----------------------------------------------
 
 Most of the providers don't provide pricing information via the API which means
-most of the pricing information is scrapped directly from the provider
+most of the pricing information is scraped directly from the provider
 websites.
 
-Pricing data which is scrapped from the provider websites is located in a
+Pricing data which is scraped from the provider websites is located in a
 JSON file (``data/pricing.json``) which is bundled with each release. This
 pricing data is only updated once you install a new release which means it
 could be out of date.

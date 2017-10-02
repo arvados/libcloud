@@ -127,21 +127,23 @@ class KubernetesContainerDriver(ContainerDriver):
                                                         secure=secure,
                                                         host=host,
                                                         port=port)
-        if host.startswith('https://'):
-            secure = True
 
-        # strip the prefix
-        prefixes = ['http://', 'https://']
-        for prefix in prefixes:
-            if host.startswith(prefix):
-                host = host.strip(prefix)
+        if host is not None:
+            if host.startswith('https://'):
+                secure = True
+
+            # strip the prefix
+            prefixes = ['http://', 'https://']
+            for prefix in prefixes:
+                if host.startswith(prefix):
+                    host = host.strip(prefix)
+
+            self.connection.host = host
+            self.connection.port = port
 
         self.connection.secure = secure
         self.connection.key = key
         self.connection.secret = secret
-
-        self.connection.host = host
-        self.connection.port = port
 
     def list_containers(self, image=None, all=True):
         """
@@ -159,9 +161,10 @@ class KubernetesContainerDriver(ContainerDriver):
             result = self.connection.request(
                 ROOT_URL + "v1/pods").object
         except Exception as exc:
-            if hasattr(exc, 'errno') and exc.errno == 111:
+            errno = getattr(exc, 'errno', None)
+            if errno == 111:
                 raise KubernetesException(
-                    exc.errno,
+                    errno,
                     'Make sure kube host is accessible'
                     'and the API port is correct')
             raise
@@ -181,10 +184,9 @@ class KubernetesContainerDriver(ContainerDriver):
 
         :rtype: :class:`libcloud.container.base.Container`
         """
-        result = self.connection.request(ROOT_URL + "v1/nodes/%s" %
-                                         id).object
-
-        return self._to_container(result)
+        containers = self.list_containers()
+        match = [container for container in containers if container.id == id]
+        return match[0]
 
     def list_clusters(self):
         """
@@ -199,9 +201,10 @@ class KubernetesContainerDriver(ContainerDriver):
             result = self.connection.request(
                 ROOT_URL + "v1/namespaces/").object
         except Exception as exc:
-            if hasattr(exc, 'errno') and exc.errno == 111:
+            errno = getattr(exc, 'errno', None)
+            if errno == 111:
                 raise KubernetesException(
-                    exc.errno,
+                    errno,
                     'Make sure kube host is accessible'
                     'and the API port is correct')
             raise
@@ -313,8 +316,8 @@ class KubernetesContainerDriver(ContainerDriver):
 
         :rtype: ``bool``
         """
-        return self.ex_delete_pod(container.extra['namespace'],
-                                  container.extra['pod'])
+        return self.ex_destroy_pod(container.extra['namespace'],
+                                   container.extra['pod'])
 
     def ex_list_pods(self):
         """
@@ -385,15 +388,6 @@ class KubernetesContainerDriver(ContainerDriver):
             name=metadata['name'],
             driver=self.connection.driver,
             extra={'phase': status['phase']})
-
-    def _get_api_version(self):
-        """
-        Get the docker API version information
-        """
-        result = self.connection.request('/version').object
-        api_version = result.get('ApiVersion')
-
-        return api_version
 
 
 def ts_to_str(timestamp):

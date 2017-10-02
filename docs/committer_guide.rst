@@ -16,8 +16,8 @@ First congratulations and welcome to the team!
 1. Subscribe to the public mailing lists
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If you haven't yet, subscribe to {dev,users,commits}@apache.libcloud.org
-mailing lists. Committs mailing list is especially important because all of
+If you haven't yet, subscribe to {dev,users,notifications}@libcloud.apache.org
+mailing lists. Notifications mailing list is especially important because all of
 the JIRA notification, Github Pull Request notifications and build notifications
 are sent there.
 
@@ -99,6 +99,7 @@ preparing a release.
 * Make sure ``__version__`` string in ``libcloud/__init__.py`` is up to date
 * Remove the ``tox`` directory with ``rm -rf .tox``
 * Remove the _secrets_ file with ``rm libcloud/test/secrets.py``
+* Remove leftover builds from previous releases. ``rm -f dist/apache*``
 
 2. Update JIRA
 ~~~~~~~~~~~~~~
@@ -160,6 +161,9 @@ For example:
 
     git tag --sign v0.15.0 105b9610835f99704996d861d613c5a9a8b3f8b1
 
+The commit SHA needs to be the one release artifacts are based on (aka the one
+people voted on) and the same one you used for the ``-tentative`` tag.
+
 Keep in mind that it's important that you sign the commit / tag with your GPG
 key.
 
@@ -181,21 +185,13 @@ key.
 7. Publishing package to PyPi
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**For consistency and security reasons packages are always uploaded to PyPi
-manually using the web interface and not using the setup.py upload
-command.**
+We have a script that runs uploads the signed Python source files to PyPi. It uses twine, so ensure
+you have twine available in your path `which twine` before running. Twine can be downloaded from https://pypi.python.org/pypi/twine
 
-* Run ``python setup.py register`` command. This will register a new
-  version on PyPi, but it won't upload the actual release artifacts.
+.. sourcecode:: bash
 
-* Go to the `PyPi release management page`_, find a new release and click on
-  "files" link.
-
-* Once you are there, upload all the release artifacts (.tar.bz2, .tar.gz,
-  .zip, and .whl). For ``File Type`` select ``Source`` (except for ``.whl``
-  file where you should select ``Python Wheel``) and for ``Python Version``
-  select ``Any (ie. pure Python)``. Make sure to also select and upload a PGP
-  signature for each file (``PGP signature (.asc)`` field).
+    cd dist
+    ./deploy.sh
 
 Once all the files have been uploaded, the page should look similar to the
 screenshot below.
@@ -225,11 +221,26 @@ For example
 
     ./dist/verify_checksums.sh apache-libcloud-0.13.2
 
-9. Updating doap_libcloud.rdf file
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+9. Updating doap_libcloud.rdf, __init__.py
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Add information about the new release to the ``doap_libcloud.rdf`` file in the
 root of the main code repository.
+
+Update ``__version__`` attribute in ``libcloud/__init.py__`` file and indicate
+we are now working on a new release by incrementing a number and adding ``dev``
+suffix. For example, if version ``2.2.1`` has been released you would change
+it from:
+
+.. sourcecode:: python
+
+    __version__ = '2.2.1'
+
+To:
+
+.. sourcecode:: python
+
+    __version__ = '2.2.2dev'
 
 10. Updating website
 ~~~~~~~~~~~~~~~~~~~~

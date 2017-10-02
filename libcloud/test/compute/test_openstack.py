@@ -19,6 +19,7 @@ import os
 import sys
 import unittest
 import datetime
+import pytest
 from libcloud.utils.iso8601 import UTC
 
 try:
@@ -27,26 +28,30 @@ except ImportError:
     import json
 
 from mock import Mock, patch
+import requests_mock
 
 from libcloud.utils.py3 import httplib
 from libcloud.utils.py3 import method_type
 from libcloud.utils.py3 import u
 
+from libcloud.common.base import LibcloudConnection
 from libcloud.common.types import InvalidCredsError, MalformedResponseError, \
     LibcloudError
 from libcloud.compute.types import Provider, KeyPairDoesNotExistError, StorageVolumeState, \
     VolumeSnapshotState
 from libcloud.compute.providers import get_driver
 from libcloud.compute.drivers.openstack import (
-    OpenStack_1_0_NodeDriver, OpenStack_1_0_Response,
+    OpenStack_1_0_NodeDriver,
     OpenStack_1_1_NodeDriver, OpenStackSecurityGroup,
     OpenStackSecurityGroupRule, OpenStack_1_1_FloatingIpPool,
-    OpenStack_1_1_FloatingIpAddress, OpenStackKeyPair
+    OpenStack_1_1_FloatingIpAddress, OpenStackKeyPair,
+    OpenStack_1_0_Connection,
+    OpenStackNodeDriver
 )
 from libcloud.compute.base import Node, NodeImage, NodeSize
 from libcloud.pricing import set_pricing, clear_pricing_data
 
-from libcloud.test import MockResponse, MockHttpTestCase, XML_HEADERS
+from libcloud.test import MockHttp, XML_HEADERS
 from libcloud.test.file_fixtures import ComputeFileFixtures, OpenStackFixtures
 from libcloud.test.compute import TestCaseMixin
 
@@ -55,36 +60,40 @@ from libcloud.test.secrets import OPENSTACK_PARAMS
 BASE_DIR = os.path.abspath(os.path.split(__file__)[0])
 
 
-class OpenStack_1_0_ResponseTestCase(unittest.TestCase):
-    XML = """<?xml version="1.0" encoding="UTF-8"?><root/>"""
-
-    def test_simple_xml_content_type_handling(self):
-        http_response = MockResponse(
-            200, OpenStack_1_0_ResponseTestCase.XML, headers={'content-type': 'application/xml'})
-        body = OpenStack_1_0_Response(http_response, None).parse_body()
-
-        self.assertTrue(hasattr(body, 'tag'), "Body should be parsed as XML")
-
-    def test_extended_xml_content_type_handling(self):
-        http_response = MockResponse(200,
-                                     OpenStack_1_0_ResponseTestCase.XML,
-                                     headers={'content-type': 'application/xml; charset=UTF-8'})
-        body = OpenStack_1_0_Response(http_response, None).parse_body()
-
-        self.assertTrue(hasattr(body, 'tag'), "Body should be parsed as XML")
-
-    def test_non_xml_content_type_handling(self):
-        RESPONSE_BODY = "Accepted"
-
-        http_response = MockResponse(
-            202, RESPONSE_BODY, headers={'content-type': 'text/html'})
-        body = OpenStack_1_0_Response(http_response, None).parse_body()
-
-        self.assertEqual(
-            body, RESPONSE_BODY, "Non-XML body should be returned as is")
+def test_driver_instantiation_invalid_auth():
+    with pytest.raises(LibcloudError):
+        d = OpenStackNodeDriver(
+            'user', 'correct_password',
+            ex_force_auth_version='5.0',
+            ex_force_auth_url='http://x.y.z.y:5000',
+            ex_tenant_name='admin')
+        d.list_nodes()
 
 
-class OpenStack_1_0_Tests(unittest.TestCase, TestCaseMixin):
+class OpenStackAuthTests(unittest.TestCase):
+    def setUp(self):
+        OpenStack_1_0_NodeDriver.connectionCls = OpenStack_1_0_Connection
+        OpenStack_1_0_NodeDriver.connectionCls.conn_class = LibcloudConnection
+
+    def test_auth_host_passed(self):
+        forced_auth = 'http://x.y.z.y:5000'
+        d = OpenStack_1_0_NodeDriver(
+            'user', 'correct_password',
+            ex_force_auth_version='2.0_password',
+            ex_force_auth_url='http://x.y.z.y:5000',
+            ex_tenant_name='admin')
+        self.assertEqual(d._ex_force_auth_url, forced_auth)
+
+        with requests_mock.Mocker() as mock:
+            body2 = ComputeFileFixtures('openstack').load('_v2_0__auth.json')
+
+            mock.register_uri('POST', 'http://x.y.z.y:5000/v2.0/tokens', text=body2,
+                              headers={'content-type': 'application/json; charset=UTF-8'})
+            d.connection._populate_hosts_and_request_paths()
+            self.assertEqual(d.connection.host, 'test_endpoint.com')
+
+
+class OpenStack_1_0_Tests(TestCaseMixin, unittest.TestCase):
     should_list_locations = False
     should_list_volumes = False
 
@@ -107,8 +116,7 @@ class OpenStack_1_0_Tests(unittest.TestCase, TestCaseMixin):
             return "https://servers.api.rackspacecloud.com/v1.0/slug"
         self.driver_klass.connectionCls.get_endpoint = get_endpoint
 
-        self.driver_klass.connectionCls.conn_classes = (OpenStackMockHttp,
-                                                        OpenStackMockHttp)
+        self.driver_klass.connectionCls.conn_class = OpenStackMockHttp
         self.driver_klass.connectionCls.auth_url = "https://auth.api.example.com"
 
         OpenStackMockHttp.type = None
@@ -460,7 +468,7 @@ class OpenStack_1_0_FactoryMethodTests(OpenStack_1_0_Tests):
             self.fail('Exception was not thrown')
 
 
-class OpenStackMockHttp(MockHttpTestCase):
+class OpenStackMockHttp(MockHttp, unittest.TestCase):
     fixtures = ComputeFileFixtures('openstack')
     auth_fixtures = OpenStackFixtures()
     json_content_headers = {'content-type': 'application/json; charset=UTF-8'}
@@ -514,7 +522,7 @@ class OpenStackMockHttp(MockHttpTestCase):
             raise NotImplementedError()
         # this is currently used for deletion of an image
         # as such it should not accept GET/POST
-        return(httplib.NO_CONTENT, "", "", httplib.responses[httplib.NO_CONTENT])
+        return(httplib.NO_CONTENT, "", {}, httplib.responses[httplib.NO_CONTENT])
 
     def _v1_0_slug_images(self, method, url, body, headers):
         if method != "POST":
@@ -639,8 +647,7 @@ class OpenStack_1_1_Tests(unittest.TestCase, TestCaseMixin):
         return self.driver_type(*self.driver_args, **self.driver_kwargs)
 
     def setUp(self):
-        self.driver_klass.connectionCls.conn_classes = (
-            OpenStack_2_0_MockHttp, OpenStack_2_0_MockHttp)
+        self.driver_klass.connectionCls.conn_class = OpenStack_2_0_MockHttp
         self.driver_klass.connectionCls.auth_url = "https://auth.api.example.com"
 
         OpenStackMockHttp.type = None
@@ -805,8 +812,7 @@ class OpenStack_1_1_Tests(unittest.TestCase, TestCaseMixin):
 
     def test_list_nodes_no_image_id_attribute(self):
         # Regression test for LIBCLOD-455
-        self.driver_klass.connectionCls.conn_classes[0].type = 'ERROR_STATE_NO_IMAGE_ID'
-        self.driver_klass.connectionCls.conn_classes[1].type = 'ERROR_STATE_NO_IMAGE_ID'
+        self.driver_klass.connectionCls.conn_class.type = 'ERROR_STATE_NO_IMAGE_ID'
 
         nodes = self.driver.list_nodes()
         self.assertEqual(nodes[0].extra['imageId'], None)
@@ -858,7 +864,7 @@ class OpenStack_1_1_Tests(unittest.TestCase, TestCaseMixin):
         self.assertEqual(len(sizes), 8, 'Wrong sizes count')
 
         for size in sizes:
-            self.assertTrue(isinstance(size.price, float),
+            self.assertTrue(size.price is None or isinstance(size.price, float),
                             'Wrong size price type')
             self.assertTrue(isinstance(size.ram, int))
             self.assertTrue(isinstance(size.vcpus, int))
@@ -984,6 +990,30 @@ class OpenStack_1_1_Tests(unittest.TestCase, TestCaseMixin):
         self.assertEqual(volume.name, 'test')
         self.assertEqual(volume.size, 1)
 
+    def test_create_volume_passes_location_to_request_only_if_not_none(self):
+        with patch.object(self.driver.connection, 'request') as mock_request:
+            self.driver.create_volume(1, 'test', location='mylocation')
+            name, args, kwargs = mock_request.mock_calls[0]
+            self.assertEqual(kwargs["data"]["volume"]["availability_zone"], "mylocation")
+
+    def test_create_volume_does_not_pass_location_to_request_if_none(self):
+        with patch.object(self.driver.connection, 'request') as mock_request:
+            self.driver.create_volume(1, 'test')
+            name, args, kwargs = mock_request.mock_calls[0]
+            self.assertFalse("availability_zone" in kwargs["data"]["volume"])
+
+    def test_create_volume_passes_volume_type_to_request_only_if_not_none(self):
+        with patch.object(self.driver.connection, 'request') as mock_request:
+            self.driver.create_volume(1, 'test', ex_volume_type='myvolumetype')
+            name, args, kwargs = mock_request.mock_calls[0]
+            self.assertEqual(kwargs["data"]["volume"]["volume_type"], "myvolumetype")
+
+    def test_create_volume_does_not_pass_volume_type_to_request_if_none(self):
+        with patch.object(self.driver.connection, 'request') as mock_request:
+            self.driver.create_volume(1, 'test')
+            name, args, kwargs = mock_request.mock_calls[0]
+            self.assertFalse("volume_type" in kwargs["data"]["volume"])
+
     def test_destroy_volume(self):
         volume = self.driver.ex_get_volume(
             'cd76a3a1-c4ce-40f6-9b9f-07a61508938d')
@@ -1104,6 +1134,10 @@ class OpenStack_1_1_Tests(unittest.TestCase, TestCaseMixin):
         node = self.driver.ex_get_node_details(node_id)
         self.assertEqual(node.id, '12064')
         self.assertEqual(node.name, 'lc-test')
+
+    def test_ex_get_node_details_returns_none_if_node_does_not_exist(self):
+        node = self.driver.ex_get_node_details('does-not-exist')
+        self.assertTrue(node is None)
 
     def test_ex_get_size(self):
         size_id = '7'
@@ -1409,6 +1443,22 @@ class OpenStack_1_1_Tests(unittest.TestCase, TestCaseMixin):
         ret = self.driver.ex_unpause_node(node)
         self.assertTrue(ret is True)
 
+    def test_ex_stop_node(self):
+        node = Node(
+            id='12063', name=None, state=None,
+            public_ips=None, private_ips=None, driver=self.driver,
+        )
+        ret = self.driver.ex_stop_node(node)
+        self.assertTrue(ret is True)
+
+    def test_ex_start_node(self):
+        node = Node(
+            id='12063', name=None, state=None,
+            public_ips=None, private_ips=None, driver=self.driver,
+        )
+        ret = self.driver.ex_start_node(node)
+        self.assertTrue(ret is True)
+
     def test_ex_suspend_node(self):
         node = Node(
             id='12063', name=None, state=None,
@@ -1436,14 +1486,14 @@ class OpenStack_1_1_Tests(unittest.TestCase, TestCaseMixin):
 
     def test_ex_list_snapshots(self):
         if self.driver_type.type == 'rackspace':
-            self.conn_classes[0].type = 'RACKSPACE'
-            self.conn_classes[1].type = 'RACKSPACE'
+            self.conn_class.type = 'RACKSPACE'
 
         snapshots = self.driver.ex_list_snapshots()
         self.assertEqual(len(snapshots), 3)
         self.assertEqual(snapshots[0].created, datetime.datetime(2012, 2, 29, 3, 50, 7, tzinfo=UTC))
         self.assertEqual(snapshots[0].extra['created'], "2012-02-29T03:50:07Z")
         self.assertEqual(snapshots[0].extra['name'], 'snap-001')
+        self.assertEqual(snapshots[0].name, 'snap-001')
         self.assertEqual(snapshots[0].state, VolumeSnapshotState.AVAILABLE)
 
         # invalid date is parsed as None
@@ -1454,8 +1504,7 @@ class OpenStack_1_1_Tests(unittest.TestCase, TestCaseMixin):
 
         # rackspace needs a different mocked response for snapshots, but not for volumes
         if self.driver_type.type == 'rackspace':
-            self.conn_classes[0].type = 'RACKSPACE'
-            self.conn_classes[1].type = 'RACKSPACE'
+            self.conn_class.type = 'RACKSPACE'
 
         snapshots = self.driver.list_volume_snapshots(volume)
         self.assertEqual(len(snapshots), 1)
@@ -1464,8 +1513,7 @@ class OpenStack_1_1_Tests(unittest.TestCase, TestCaseMixin):
     def test_create_volume_snapshot(self):
         volume = self.driver.list_volumes()[0]
         if self.driver_type.type == 'rackspace':
-            self.conn_classes[0].type = 'RACKSPACE'
-            self.conn_classes[1].type = 'RACKSPACE'
+            self.conn_class.type = 'RACKSPACE'
 
         ret = self.driver.create_volume_snapshot(volume,
                                                  'Test Volume',
@@ -1476,8 +1524,7 @@ class OpenStack_1_1_Tests(unittest.TestCase, TestCaseMixin):
     def test_ex_create_snapshot(self):
         volume = self.driver.list_volumes()[0]
         if self.driver_type.type == 'rackspace':
-            self.conn_classes[0].type = 'RACKSPACE'
-            self.conn_classes[1].type = 'RACKSPACE'
+            self.conn_class.type = 'RACKSPACE'
 
         ret = self.driver.ex_create_snapshot(volume,
                                              'Test Volume',
@@ -1485,10 +1532,22 @@ class OpenStack_1_1_Tests(unittest.TestCase, TestCaseMixin):
                                              force=True)
         self.assertEqual(ret.id, '3fbbcccf-d058-4502-8844-6feeffdf4cb5')
 
+    def test_ex_create_snapshot_does_not_post_optional_parameters_if_none(self):
+        volume = self.driver.list_volumes()[0]
+        with patch.object(self.driver, '_to_snapshot'):
+            with patch.object(self.driver.connection, 'request') as mock_request:
+                self.driver.create_volume_snapshot(volume,
+                                                   name=None,
+                                                   ex_description=None,
+                                                   ex_force=True)
+
+        name, args, kwargs = mock_request.mock_calls[0]
+        self.assertFalse("display_name" in kwargs["data"]["snapshot"])
+        self.assertFalse("display_description" in kwargs["data"]["snapshot"])
+
     def test_destroy_volume_snapshot(self):
         if self.driver_type.type == 'rackspace':
-            self.conn_classes[0].type = 'RACKSPACE'
-            self.conn_classes[1].type = 'RACKSPACE'
+            self.conn_class.type = 'RACKSPACE'
 
         snapshot = self.driver.ex_list_snapshots()[0]
         ret = self.driver.destroy_volume_snapshot(snapshot)
@@ -1496,8 +1555,7 @@ class OpenStack_1_1_Tests(unittest.TestCase, TestCaseMixin):
 
     def test_ex_delete_snapshot(self):
         if self.driver_type.type == 'rackspace':
-            self.conn_classes[0].type = 'RACKSPACE'
-            self.conn_classes[1].type = 'RACKSPACE'
+            self.conn_class.type = 'RACKSPACE'
 
         snapshot = self.driver.ex_list_snapshots()[0]
         ret = self.driver.ex_delete_snapshot(snapshot)
@@ -1514,7 +1572,7 @@ class OpenStack_1_1_FactoryMethodTests(OpenStack_1_1_Tests):
     driver_kwargs = {'ex_force_auth_version': '2.0'}
 
 
-class OpenStack_1_1_MockHttp(MockHttpTestCase):
+class OpenStack_1_1_MockHttp(MockHttp, unittest.TestCase):
     fixtures = ComputeFileFixtures('openstack_v1.1')
     auth_fixtures = OpenStackFixtures()
     json_content_headers = {'content-type': 'application/json; charset=UTF-8'}
@@ -1537,6 +1595,9 @@ class OpenStack_1_1_MockHttp(MockHttpTestCase):
     def _v1_1_slug_servers_detail_ERROR_STATE_NO_IMAGE_ID(self, method, url, body, headers):
         body = self.fixtures.load('_servers_detail_ERROR_STATE.json')
         return (httplib.OK, body, self.json_content_headers, httplib.responses[httplib.OK])
+
+    def _v2_1337_servers_does_not_exist(self, *args, **kwargs):
+        return httplib.NOT_FOUND, None, {}, httplib.responses[httplib.NOT_FOUND]
 
     def _v1_1_slug_flavors_detail(self, method, url, body, headers):
         body = self.fixtures.load('_flavors_detail.json')
@@ -1912,8 +1973,7 @@ class OpenStack_1_1_Auth_2_0_Tests(OpenStack_1_1_Tests):
     driver_kwargs = {'ex_force_auth_version': '2.0'}
 
     def setUp(self):
-        self.driver_klass.connectionCls.conn_classes = \
-            (OpenStack_2_0_MockHttp, OpenStack_2_0_MockHttp)
+        self.driver_klass.connectionCls.conn_class = OpenStack_2_0_MockHttp
         self.driver_klass.connectionCls.auth_url = "https://auth.api.example.com"
         OpenStackMockHttp.type = None
         OpenStack_1_1_MockHttp.type = None

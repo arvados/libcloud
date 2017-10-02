@@ -18,7 +18,9 @@ Provider            list zones list records create zone update zone create recor
 `Luadns`_           yes        yes          yes         no          yes           no            yes         yes          
 `NFSN DNS`_         no         yes          no          no          yes           no            no          yes          
 `NS1 DNS`_          yes        yes          yes         no          yes           yes           yes         yes          
+`OnApp`_            yes        yes          yes         no          yes           yes           yes         yes          
 `Point DNS`_        yes        yes          yes         yes         yes           yes           yes         yes          
+`PowerDNS`_         yes        yes          yes         no          yes           yes           yes         yes          
 `Rackspace DNS`_    yes        yes          yes         yes         yes           yes           yes         yes          
 `Route53 DNS`_      yes        yes          yes         no          yes           yes           yes         yes          
 `Softlayer DNS`_    yes        yes          yes         no          yes           yes           yes         yes          
@@ -43,7 +45,9 @@ Provider            list zones list records create zone update zone create recor
 .. _`Luadns`: https://www.luadns.com
 .. _`NFSN DNS`: https://www.nearlyfreespeech.net
 .. _`NS1 DNS`: https://ns1.com
+.. _`OnApp`: http://onapp.com/
 .. _`Point DNS`: https://pointhq.com/
+.. _`PowerDNS`: https://www.powerdns.com/
 .. _`Rackspace DNS`: http://www.rackspace.com/
 .. _`Route53 DNS`: http://aws.amazon.com/route53/
 .. _`Softlayer DNS`: https://www.softlayer.com

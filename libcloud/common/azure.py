@@ -24,11 +24,7 @@ from libcloud.utils.py3 import httplib
 from libcloud.utils.py3 import b
 from libcloud.utils.xml import fixxpath
 
-try:
-    from lxml import etree as ET
-except ImportError:
-    from xml.etree import ElementTree as ET
-
+from libcloud.utils.py3 import ET
 from libcloud.common.types import InvalidCredsError
 from libcloud.common.types import LibcloudError, MalformedResponseError
 from libcloud.common.base import ConnectionUserAndKey, RawResponse
@@ -71,6 +67,7 @@ class AzureResponse(XmlResponse):
             # Some APIs respond with an XML error. Others just dump HTML
             body = self.parse_body()
 
+            # pylint: disable=no-member
             if type(body) == ET.Element:
                 code = body.findtext(fixxpath(xpath='Code'))
                 message = body.findtext(fixxpath(xpath='Message'))
@@ -111,6 +108,8 @@ class AzureConnection(ConnectionUserAndKey):
 
     responseCls = AzureResponse
     rawResponseCls = AzureRawResponse
+    skip_host = False
+    skip_accept_encoding = False
 
     def add_default_params(self, params):
         return params

@@ -59,114 +59,120 @@ class Provider(Type):
     """
     Defines for each of the supported providers
 
+    Non-Dummy drivers are sorted in alphabetical order. Please preserve this
+    ordering when adding new drivers.
+
     :cvar DUMMY: Example provider
-    :cvar EC2_US_EAST: Amazon AWS US N. Virgina
-    :cvar EC2_US_WEST: Amazon AWS US N. California
-    :cvar EC2_EU_WEST: Amazon AWS EU Ireland
-    :cvar RACKSPACE: Rackspace next-gen OpenStack based Cloud Servers
-    :cvar RACKSPACE_FIRST_GEN: Rackspace First Gen Cloud Servers
+    :cvar ABIQUO: Abiquo driver
+    :cvar ALIYUN_ECS: Aliyun ECS driver.
+    :cvar AURORACOMPUTE: Aurora Compute driver.
+    :cvar AZURE: Azure (classic) driver.
+    :cvar AZURE_ARM: Azure Resource Manager (modern) driver.
+    :cvar BLUEBOX: Bluebox
+    :cvar CLOUDSIGMA: CloudSigma
+    :cvar CLOUDSCALE: cloudscale.ch
+    :cvar CLOUDSTACK: CloudStack
+    :cvar DIMENSIONDATA: Dimension Data Cloud
+    :cvar EC2: Amazon AWS.
+    :cvar ECP: Enomaly
+    :cvar ELASTICHOSTS: ElasticHosts.com
+    :cvar EXOSCALE: Exoscale driver.
     :cvar GCE: Google Compute Engine
     :cvar GOGRID: GoGrid
-    :cvar VPSNET: VPS.net
-    :cvar LINODE: Linode.com
-    :cvar VCLOUD: vmware vCloud
-    :cvar RIMUHOSTING: RimuHosting.com
-    :cvar ECP: Enomaly
-    :cvar IBM: IBM Developer Cloud
-    :cvar OPENNEBULA: OpenNebula.org
-    :cvar ELASTICHOSTS: ElasticHosts.com
-    :cvar CLOUDSIGMA: CloudSigma
-    :cvar NIMBUS: Nimbus
-    :cvar BLUEBOX: Bluebox
-    :cvar OPSOURCE: Opsource Cloud
-    :cvar DIMENSIONDATA: Dimension Data Cloud
-    :cvar NINEFOLD: Ninefold
-    :cvar TERREMARK: Terremark
-    :cvar EC2_US_WEST_OREGON: Amazon AWS US West 2 (Oregon)
-    :cvar CLOUDSTACK: CloudStack
-    :cvar CLOUDSIGMA_US: CloudSigma US Las Vegas
-    :cvar LIBVIRT: Libvirt driver
-    :cvar JOYENT: Joyent driver
-    :cvar VCL: VCL driver
-    :cvar KTUCLOUD: kt ucloud driver
     :cvar GRIDSPOT: Gridspot driver
-    :cvar ABIQUO: Abiquo driver
-    :cvar NEPHOSCALE: NephoScale driver
-    :cvar EXOSCALE: Exoscale driver.
+    :cvar IBM: IBM Developer Cloud
     :cvar IKOULA: Ikoula driver.
-    :cvar OUTSCALE_SAS: Outscale SAS driver.
+    :cvar JOYENT: Joyent driver
+    :cvar KTUCLOUD: kt ucloud driver
+    :cvar LIBVIRT: Libvirt driver
+    :cvar LINODE: Linode.com
+    :cvar NEPHOSCALE: NephoScale driver
+    :cvar NIMBUS: Nimbus
+    :cvar NINEFOLD: Ninefold
+    :cvar OPENNEBULA: OpenNebula.org
+    :cvar OPSOURCE: Opsource Cloud
     :cvar OUTSCALE_INC: Outscale INC driver.
+    :cvar OUTSCALE_SAS: Outscale SAS driver.
     :cvar PROFIT_BRICKS: ProfitBricks driver.
+    :cvar RACKSPACE: Rackspace next-gen OpenStack based Cloud Servers
+    :cvar RACKSPACE_FIRST_GEN: Rackspace First Gen Cloud Servers
+    :cvar RIMUHOSTING: RimuHosting.com
+    :cvar TERREMARK: Terremark
+    :cvar UPCLOUD: UpCloud
+    :cvar VCL: VCL driver
+    :cvar VCLOUD: vmware vCloud
+    :cvar VPSNET: VPS.net
     :cvar VULTR: vultr driver.
-    :cvar AZURE: Azure Service Manager (classic) driver.
-    :cvar AZURE_ARM: Azure Resource Manager (modern) driver.
-    :cvar AURORACOMPUTE: Aurora Compute driver.
-    :cvar ALIYUN_ECS: Aliyun ECS driver.
     """
     AZURE = 'azure'
     AZURE_ARM = 'azure_arm'
     DUMMY = 'dummy'
+    ABIQUO = 'abiquo'
+    ALIYUN_ECS = 'aliyun_ecs'
+    AURORACOMPUTE = 'aurora_compute'
+    AZURE = 'azure'
+    BLUEBOX = 'bluebox'
+    BRIGHTBOX = 'brightbox'
+    BSNL = 'bsnl'
+    CISCOCCS = 'ciscoccs'
+    CLOUDFRAMES = 'cloudframes'
+    CLOUDSIGMA = 'cloudsigma'
+    CLOUDSCALE = 'cloudscale'
+    CLOUDSTACK = 'cloudstack'
+    CLOUDWATT = 'cloudwatt'
+    DIGITAL_OCEAN = 'digitalocean'
+    DIMENSIONDATA = 'dimensiondata'
     EC2 = 'ec2'
-    RACKSPACE = 'rackspace'
+    ECP = 'ecp'
+    ELASTICHOSTS = 'elastichosts'
+    EUCALYPTUS = 'eucalyptus'
+    EXOSCALE = 'exoscale'
+    GANDI = 'gandi'
     GCE = 'gce'
     GOGRID = 'gogrid'
-    VPSNET = 'vpsnet'
-    LINODE = 'linode'
-    VCLOUD = 'vcloud'
-    RIMUHOSTING = 'rimuhosting'
-    VOXEL = 'voxel'
-    SOFTLAYER = 'softlayer'
-    EUCALYPTUS = 'eucalyptus'
-    ECP = 'ecp'
-    IBM = 'ibm'
-    OPENNEBULA = 'opennebula'
-    ELASTICHOSTS = 'elastichosts'
-    BRIGHTBOX = 'brightbox'
-    CLOUDSIGMA = 'cloudsigma'
-    NIMBUS = 'nimbus'
-    BLUEBOX = 'bluebox'
-    GANDI = 'gandi'
-    OPSOURCE = 'opsource'
-    DIMENSIONDATA = 'dimensiondata'
-    OPENSTACK = 'openstack'
-    SKALICLOUD = 'skalicloud'
-    SERVERLOVE = 'serverlove'
-    NINEFOLD = 'ninefold'
-    TERREMARK = 'terremark'
-    CLOUDSTACK = 'cloudstack'
-    LIBVIRT = 'libvirt'
-    JOYENT = 'joyent'
-    VCL = 'vcl'
-    KTUCLOUD = 'ktucloud'
     GRIDSPOT = 'gridspot'
-    RACKSPACE_FIRST_GEN = 'rackspace_first_gen'
     HOSTVIRTUAL = 'hostvirtual'
-    ABIQUO = 'abiquo'
-    DIGITAL_OCEAN = 'digitalocean'
-    NEPHOSCALE = 'nephoscale'
-    CLOUDFRAMES = 'cloudframes'
-    EXOSCALE = 'exoscale'
+    IBM = 'ibm'
     IKOULA = 'ikoula'
-    OUTSCALE_SAS = 'outscale_sas'
-    OUTSCALE_INC = 'outscale_inc'
-    VSPHERE = 'vsphere'
-    PROFIT_BRICKS = 'profitbricks'
-    VULTR = 'vultr'
-    AURORACOMPUTE = 'aurora_compute'
-    CLOUDWATT = 'cloudwatt'
-    PACKET = 'packet'
-    RUNABOVE = 'runabove'
-    INTERNETSOLUTIONS = 'internetsolutions'
     INDOSAT = 'indosat'
-    BSNL = 'bsnl'
-    NTTA = 'ntta'
+    INTERNETSOLUTIONS = 'internetsolutions'
+    JOYENT = 'joyent'
+    KTUCLOUD = 'ktucloud'
+    LIBVIRT = 'libvirt'
+    LINODE = 'linode'
     MEDONE = 'medone'
-    CISCOCCS = 'ciscoccs'
-    ALIYUN_ECS = 'aliyun_ecs'
+    NEPHOSCALE = 'nephoscale'
+    NIMBUS = 'nimbus'
+    NINEFOLD = 'ninefold'
+    NTTA = 'ntta'
+    ONEANDONE = 'oneandone'
+    OPENNEBULA = 'opennebula'
+    OPENSTACK = 'openstack'
+    OPSOURCE = 'opsource'
+    OUTSCALE_INC = 'outscale_inc'
+    OUTSCALE_SAS = 'outscale_sas'
+    OVH = 'ovh'
+    PACKET = 'packet'
+    PROFIT_BRICKS = 'profitbricks'
+    RACKSPACE = 'rackspace'
+    RACKSPACE_FIRST_GEN = 'rackspace_first_gen'
+    RIMUHOSTING = 'rimuhosting'
+    RUNABOVE = 'runabove'
+    SERVERLOVE = 'serverlove'
+    SKALICLOUD = 'skalicloud'
+    SOFTLAYER = 'softlayer'
+    TERREMARK = 'terremark'
+    UPCLOUD = 'upcloud'
+    VCL = 'vcl'
+    VCLOUD = 'vcloud'
+    VOXEL = 'voxel'
+    VPSNET = 'vpsnet'
+    VSPHERE = 'vsphere'
+    VULTR = 'vultr'
 
     # OpenStack based providers
-    HPCLOUD = 'hpcloud'
     CLOUDWATT = 'cloudwatt'
+    HPCLOUD = 'hpcloud'
     KILI = 'kili'
     ONAPP = 'onapp'
 
@@ -178,8 +184,10 @@ class Provider(Type):
     RACKSPACE_NOVA_ORD = 'rackspace_nova_ord'
 
     EC2_US_EAST = 'ec2_us_east'
+    EC2_US_EAST_OHIO = 'ec2_us_east_ohio'
     EC2_EU = 'ec2_eu_west'  # deprecated name
     EC2_EU_WEST = 'ec2_eu_west'
+    EC2_EU_WEST2 = 'ec2_eu_west_london'
     EC2_US_WEST = 'ec2_us_west'
     EC2_AP_SOUTHEAST = 'ec2_ap_southeast'
     EC2_AP_NORTHEAST = 'ec2_ap_northeast'
@@ -188,6 +196,7 @@ class Provider(Type):
     EC2_US_WEST_OREGON = 'ec2_us_west_oregon'
     EC2_SA_EAST = 'ec2_sa_east'
     EC2_AP_SOUTHEAST2 = 'ec2_ap_southeast_2'
+    EC2_CA_CENTRAL1 = 'ec2_ca_central_1'
 
     ELASTICHOSTS_UK1 = 'elastichosts_uk1'
     ELASTICHOSTS_UK2 = 'elastichosts_uk2'
@@ -220,8 +229,10 @@ OLD_CONSTANT_TO_NEW_MAPPING = {
 
     # AWS
     Provider.EC2_US_EAST: Provider.EC2,
+    Provider.EC2_US_EAST_OHIO: Provider.EC2,
     Provider.EC2_EU: Provider.EC2,
     Provider.EC2_EU_WEST: Provider.EC2,
+    Provider.EC2_EU_WEST2: Provider.EC2,
     Provider.EC2_US_WEST: Provider.EC2,
     Provider.EC2_AP_SOUTHEAST: Provider.EC2,
     Provider.EC2_AP_SOUTHEAST2: Provider.EC2,
@@ -231,6 +242,7 @@ OLD_CONSTANT_TO_NEW_MAPPING = {
     Provider.EC2_US_WEST_OREGON: Provider.EC2,
     Provider.EC2_SA_EAST: Provider.EC2,
     Provider.EC2_AP_SOUTHEAST: Provider.EC2,
+    Provider.EC2_CA_CENTRAL1: Provider.EC2,
 
     # ElasticHosts
     Provider.ELASTICHOSTS_UK1: Provider.ELASTICHOSTS,
@@ -274,6 +286,9 @@ class NodeState(Type):
     ERROR = 'error'
     PAUSED = 'paused'
     RECONFIGURING = 'reconfiguring'
+    MIGRATING = 'migrating'
+    NORMAL = 'normal'
+    UPDATING = 'updating'
 
 
 class StorageVolumeState(Type):
@@ -289,6 +304,8 @@ class StorageVolumeState(Type):
     BACKUP = 'backup'
     ATTACHING = 'attaching'
     UNKNOWN = 'unknown'
+    MIGRATING = 'migrating'
+    UPDATING = 'updating'
 
 
 class VolumeSnapshotState(Type):
@@ -301,6 +318,7 @@ class VolumeSnapshotState(Type):
     DELETING = 'deleting'
     RESTORING = 'restoring'
     UNKNOWN = 'unknown'
+    UPDATING = 'updating'
 
 
 class Architecture(object):

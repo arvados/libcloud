@@ -4,10 +4,10 @@ sudo: false
 python:
     - 2.6
     - 2.7
-    - 3.2
     - 3.3
     - 3.4
     - 3.5
+    - 3.6
     - pypy
     - pypy3
 os:
@@ -18,15 +18,25 @@ addons:
   apt:
     packages:
       - graphviz
+      - libvirt-bin
 
 matrix:
   fast_finish: true
   include:
+    - env: ENV=checks
+      python: 2.7
+      before_script: TOX_ENV=checks
     - env: ENV=lint
       python: 2.7
       before_script: TOX_ENV=lint
-    - env: ENV=docs
+    - env: ENV=pylint
       python: 2.7
+      before_script: TOX_ENV=pylint
+    - env: ENV=coverage
+      python: 2.7
+      before_script: TOX_ENV=coverage-travis
+    - env: ENV=docs
+      python: 3.5
       before_script: TOX_ENV=docs-travis
       # Note: graphviz is needed for grapgs embedded in the docs
       addons:
@@ -34,13 +44,23 @@ matrix:
           packages:
             - graphviz
             - gcc
+            - libvirt-bin
+      # Trigger ReadTheDocs build on docs builder
+      after_success:
+        - ./contrib/trigger_rtd_build.py 8284
+  # For now allow failures of all the builds which use lxml
+  allow_failures:
+    - env: ENV=coverage
+    - env:
+      python: pypy3
+    - env:
+      python: pypy
       # Trigger ReadTheDocs build
-      after_success: ./contrib/trigger_rtd_build.py 8284
 
 install:
-  - pip install --upgrade "pip<8.0.0"
-  - pip install "virtualenv<14.0.0"
-  - pip install "tox>=2.3.0,<2.4"
+  - pip install --upgrade "pip==9.0.1"
+  - pip install "virtualenv==15.1.0"
+  - pip install "tox==2.8.2"
   - TOX_ENV=py$TRAVIS_PYTHON_VERSION
 
 script:

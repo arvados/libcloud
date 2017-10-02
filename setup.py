@@ -14,13 +14,10 @@
 # limitations under the License.
 import os
 import sys
-import doctest
 
 from setuptools import setup
 from distutils.core import Command
-from unittest import TextTestRunner, TestLoader
-from glob import glob
-from os.path import splitext, basename, join as pjoin
+from os.path import join as pjoin
 
 try:
     import epydoc  # NOQA
@@ -28,8 +25,9 @@ try:
 except ImportError:
     has_epydoc = False
 
-import libcloud.utils
-from libcloud.utils.dist import get_packages, get_data_files
+
+import libcloud.utils  # NOQA
+from libcloud.utils.dist import get_packages, get_data_files  # NOQA
 
 libcloud.utils.SHOW_DEPRECATION_WARNING = False
 
@@ -56,10 +54,14 @@ DOC_TEST_MODULES = ['libcloud.compute.drivers.dummy',
                     'libcloud.container.drivers.dummy',
                     'libcloud.backup.drivers.dummy']
 
-SUPPORTED_VERSIONS = ['2.5', '2.6', '2.7', 'PyPy', '3.x']
+SUPPORTED_VERSIONS = ['2.6', '2.7', 'PyPy', '3.x']
 
 TEST_REQUIREMENTS = [
-    'mock'
+    'mock',
+    'requests',
+    'requests_mock',
+    'pytest',
+    'pytest-runner'
 ]
 
 if PY2_pre_279 or PY3_pre_32:
@@ -97,113 +99,6 @@ def forbid_publish():
         sys.exit(1)
 
 
-class TestCommand(Command):
-    description = "run test suite"
-    user_options = []
-    unittest_TestLoader = TestLoader
-    unittest_TextTestRunner = TextTestRunner
-
-    def initialize_options(self):
-        THIS_DIR = os.path.abspath(os.path.split(__file__)[0])
-        sys.path.insert(0, THIS_DIR)
-        for test_path in TEST_PATHS:
-            sys.path.insert(0, pjoin(THIS_DIR, test_path))
-        self._dir = os.getcwd()
-
-    def finalize_options(self):
-        pass
-
-    def run(self):
-        for module_name in TEST_REQUIREMENTS:
-            try:
-                __import__(module_name)
-            except ImportError:
-                print('Missing "%s" library. %s is library is needed '
-                      'to run the tests. You can install it using pip: '
-                      'pip install %s' % (module_name, module_name,
-                                          module_name))
-                sys.exit(1)
-
-        if unittest2_required:
-            try:
-                from unittest2 import TextTestRunner, TestLoader
-                self.unittest_TestLoader = TestLoader
-                self.unittest_TextTestRunner = TextTestRunner
-            except ImportError:
-                print('Python version: %s' % (sys.version))
-                print('Missing "unittest2" library. unittest2 is library is '
-                      'needed to run the tests. You can install it using pip: '
-                      'pip install unittest2')
-                sys.exit(1)
-
-        status = self._run_tests()
-        sys.exit(status)
-
-    def _run_tests(self):
-        secrets_current = pjoin(self._dir, 'libcloud/test', 'secrets.py')
-        secrets_dist = pjoin(self._dir, 'libcloud/test', 'secrets.py-dist')
-
-        if not os.path.isfile(secrets_current):
-            print("Missing " + secrets_current)
-            print("Maybe you forgot to copy it from -dist:")
-            print("cp libcloud/test/secrets.py-dist libcloud/test/secrets.py")
-            sys.exit(1)
-
-        mtime_current = os.path.getmtime(secrets_current)
-        mtime_dist = os.path.getmtime(secrets_dist)
-
-        if mtime_dist > mtime_current:
-            print("It looks like test/secrets.py file is out of date.")
-            print("Please copy the new secrets.py-dist file over otherwise" +
-                  " tests might fail")
-
-        if PY2_pre_26:
-            missing = []
-            # test for dependencies
-            try:
-                import simplejson
-                simplejson              # silence pyflakes
-            except ImportError:
-                missing.append("simplejson")
-
-            try:
-                import ssl
-                ssl                     # silence pyflakes
-            except ImportError:
-                missing.append("ssl")
-
-            if missing:
-                print("Missing dependencies: " + ", ".join(missing))
-                sys.exit(1)
-
-        testfiles = []
-        for test_path in TEST_PATHS:
-            for t in glob(pjoin(self._dir, test_path, 'test_*.py')):
-                testfiles.append('.'.join(
-                    [test_path.replace('/', '.'), splitext(basename(t))[0]]))
-
-        # Test loader simply throws "'module' object has no attribute" error
-        # if there is an issue with the test module so we manually try to
-        # import each module so we get a better and more friendly error message
-        for test_file in testfiles:
-            try:
-                __import__(test_file)
-            except Exception:
-                e = sys.exc_info()[1]
-                print('Failed to import test module "%s": %s' % (test_file,
-                                                                 str(e)))
-                raise e
-
-        tests = self.unittest_TestLoader().loadTestsFromNames(testfiles)
-
-        for test_module in DOC_TEST_MODULES:
-            tests.addTests(doctest.DocTestSuite(test_module))
-
-        t = self.unittest_TextTestRunner(verbosity=2)
-        res = t.run(tests)
-        return not res.wasSuccessful()
-
-
 class ApiDocsCommand(Command):
     description = "generate API documentation"
     user_options = []
@@ -229,31 +124,9 @@ class ApiDocsCommand(Command):
             % (HTML_VIEWSOURCE_BASE, PROJECT_BASE_DIR))
 
 
-class CoverageCommand(Command):
-    description = "run test suite and generate coverage report"
-    user_options = []
-
-    def initialize_options(self):
-        pass
-
-    def finalize_options(self):
-        pass
-
-    def run(self):
-        import coverage
-        cov = coverage.coverage(config_file='.coveragerc')
-        cov.start()
-
-        tc = TestCommand(self.distribution)
-        tc._run_tests()
-
-        cov.stop()
-        cov.save()
-        cov.html_report()
-
 forbid_publish()
 
-install_requires = []
+install_requires = ['requests']
 if PY2_pre_26:
     install_requires.extend(['ssl', 'simplejson'])
 
@@ -276,14 +149,14 @@ setup(
     package_data={'libcloud': get_data_files('libcloud', parent='libcloud')},
     license='Apache License (2.0)',
     url='http://libcloud.apache.org/',
+    setup_requires=['pytest-runner'],
+    tests_require=TEST_REQUIREMENTS,
     cmdclass={
-        'test': TestCommand,
         'apidocs': ApiDocsCommand,
-        'coverage': CoverageCommand
     },
     zip_safe=False,
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
         'Environment :: Console',
         'Intended Audience :: Developers',
         'Intended Audience :: System Administrators',
@@ -291,16 +164,13 @@ setup(
         'Operating System :: OS Independent',
         'Programming Language :: Python',
         'Topic :: Software Development :: Libraries :: Python Modules',
-        'Programming Language :: Python :: 2.5',
         'Programming Language :: Python :: 2.6',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.0',
-        'Programming Language :: Python :: 3.1',
-        'Programming Language :: Python :: 3.2',
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy']
     )

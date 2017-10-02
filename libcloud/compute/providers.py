@@ -126,8 +126,8 @@ DRIVERS = {
     ('libcloud.compute.drivers.packet', 'PacketNodeDriver'),
     Provider.ONAPP:
     ('libcloud.compute.drivers.onapp', 'OnAppNodeDriver'),
-    Provider.RUNABOVE:
-    ('libcloud.compute.drivers.runabove', 'RunAboveNodeDriver'),
+    Provider.OVH:
+    ('libcloud.compute.drivers.ovh', 'OvhNodeDriver'),
     Provider.INTERNETSOLUTIONS:
     ('libcloud.compute.drivers.internetsolutions',
      'InternetSolutionsNodeDriver'),
@@ -137,12 +137,14 @@ DRIVERS = {
     ('libcloud.compute.drivers.medone', 'MedOneNodeDriver'),
     Provider.BSNL:
     ('libcloud.compute.drivers.bsnl', 'BSNLNodeDriver'),
-    Provider.CISCOCCS:
-    ('libcloud.compute.drivers.ciscoccs', 'CiscoCCSNodeDriver'),
     Provider.NTTA:
     ('libcloud.compute.drivers.ntta', 'NTTAmericaNodeDriver'),
     Provider.ALIYUN_ECS:
     ('libcloud.compute.drivers.ecs', 'ECSDriver'),
+    Provider.CLOUDSCALE:
+    ('libcloud.compute.drivers.cloudscale', 'CloudscaleNodeDriver'),
+    Provider.ONEANDONE:
+    ('libcloud.compute.drivers.oneandone', 'OneAndOneNodeDriver'),
 }
 
 

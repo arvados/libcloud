@@ -30,6 +30,12 @@ __all__ = [
 
 
 class Provider(object):
+    """
+    Defines for each of the supported providers
+
+    Non-Dummy drivers are sorted in alphabetical order. Please preserve this
+    ordering when adding new drivers.
+    """
     DUMMY = 'dummy'
     AURORADNS = 'auroradns'
     BUDDYNS = 'buddyns'
@@ -46,7 +52,9 @@ class Provider(object):
     LUADNS = 'luadns'
     NFSN = 'nfsn'
     NSONE = 'nsone'
+    ONAPP = 'onapp'
     POINTDNS = 'pointdns'
+    POWERDNS = 'powerdns'
     RACKSPACE = 'rackspace'
     ROUTE53 = 'route53'
     SOFTLAYER = 'softlayer'
@@ -54,6 +62,7 @@ class Provider(object):
     WORLDWIDEDNS = 'worldwidedns'
     ZERIGO = 'zerigo'
     ZONOMI = 'zonomi'
+    DNSPOD = 'dnspod'
     # Deprecated
     RACKSPACE_US = 'rackspace_us'
     RACKSPACE_UK = 'rackspace_uk'
@@ -71,22 +80,31 @@ class RecordType(object):
     """
     A = 'A'
     AAAA = 'AAAA'
+    AFSDB = 'A'
     ALIAS = 'ALIAS'
+    CERT = 'CERT'
     CNAME = 'CNAME'
     DNAME = 'DNAME'
+    DNSKEY = 'DNSKEY'
+    DS = 'DS'
     GEO = 'GEO'
     HINFO = 'HINFO'
+    KEY = 'KEY'
     LOC = 'LOC'
     MX = 'MX'
     NAPTR = 'NAPTR'
     NS = 'NS'
+    NSEC = 'NSEC'
+    OPENPGPKEY = 'OPENPGPKEY'
     PTR = 'PTR'
     REDIRECT = 'REDIRECT'
     RP = 'RP'
+    RRSIG = 'RRSIG'
     SOA = 'SOA'
     SPF = 'SPF'
     SRV = 'SRV'
     SSHFP = 'SSHFP'
+    TLSA = 'TLSA'
     TXT = 'TXT'
     URL = 'URL'
     WKS = 'WKS'
