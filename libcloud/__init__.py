@@ -37,7 +37,7 @@ __all__ = [
     'enable_debug'
 ]
 
-__version__ = '2.2.2dev'
+__version__ = '2.2.2.dev2'
 
 
 def enable_debug(fo):
