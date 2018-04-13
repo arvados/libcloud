@@ -4024,7 +4024,7 @@ class BaseEC2NodeDriver(NodeDriver):
 
         if 'ex_blockdevicemappings' in kwargs:
             params.update(self._get_block_device_mapping_params(
-                          kwargs['ex_blockdevicemappings']))
+                kwargs['ex_blockdevicemappings']))
 
         if 'ex_iamprofile' in kwargs:
             if not isinstance(kwargs['ex_iamprofile'], basestring):
@@ -5871,7 +5871,7 @@ class BaseEC2NodeDriver(NodeDriver):
     def ex_change_node_size(self, node, new_size):
         """
         Change the node size.
-        Note: Node must be turned of before changing the size.
+        Note: Node must be turned off before changing the size.
 
         :param      node: Node instance
         :type       node: :class:`Node`
@@ -7733,6 +7733,46 @@ class BaseEC2NodeDriver(NodeDriver):
         return filter_entries
 
 
+class EC2SpotRequestState(object):
+    """
+    Standard states for a spot request
+
+    :cvar OPEN: Spot request is open.
+    :cvar CLOSED: Spot request is closed.
+    :cvar FAILED: Spot request has failed.
+    :cvar CANCELLED: Spot request is cancelled.
+    :cvar ACTIVE: Spot request is active.
+    """
+    OPEN = 0
+    CLOSED = 1
+    FAILED = 2
+    CANCELLED = 3
+    ACTIVE = 4
+
+
+class EC2SpotRequest(object):
+    """
+    Class which stores information about an EC2 spot request.
+
+    Note: This class is EC2 specific.
+    """
+
+    def __init__(self, id, instance_id, spot_price, state, status, message,
+                 availability_zone_group, driver, extra=None):
+        self.id = id
+        self.instance_id = instance_id
+        self.spot_price = spot_price
+        self.state = state
+        self.status = status
+        self.message = message
+        self.availability_zone_group = availability_zone_group
+        self.driver = driver
+        self.extra = extra
+
+    def __repr__(self):
+        return ('<EC2SpotRequest: id=%s>') % (self.id)
+
+
 class EC2NodeDriver(BaseEC2NodeDriver):
     """
     Amazon EC2 node driver.
@@ -7750,6 +7790,14 @@ class EC2NodeDriver(BaseEC2NodeDriver):
         'shutting-down': NodeState.UNKNOWN,
         'terminated': NodeState.TERMINATED,
         'stopped': NodeState.STOPPED
+    }
+
+    SPOT_REQUEST_STATE_MAP = {
+        'open': EC2SpotRequestState.OPEN,
+        'closed': EC2SpotRequestState.CLOSED,
+        'failed': EC2SpotRequestState.FAILED,
+        'cancelled': EC2SpotRequestState.CANCELLED,
+        'active': EC2SpotRequestState.ACTIVE
     }
 
     def __init__(self, key, secret=None, secure=True, host=None, port=None,
@@ -7778,6 +7826,231 @@ class EC2NodeDriver(BaseEC2NodeDriver):
     @classmethod
     def list_regions(cls):
         return VALID_EC2_REGIONS
+
+    def request_spot_instances(self, **kwargs):
+        """
+        Create a Spot Instance Request.
+
+        Reference: http://bit.ly/8ZyPSy [docs.amazonwebservices.com]
+
+        :keyword    spot_price: The spot price to bid.
+        :type       spot_price: ``str``
+
+        :keyword    instance_count: The maximum number of Spot Instances to launch.
+        :type       instance_count: ``int``
+
+        :keyword    type: The Spot instance request type ("one-time" | "persistent").
+        :type       type: ``str``
+
+        :keyword    valid_from: The start date of the request.
+        :type       valid_from: ``datetime.datetime``
+
+        :keyword    valid_until: The end date of the request.
+        :type       valid_until: ``datetime.datetime``
+
+        :keyword    image: OS Image to boot on node. (required)
+        :type       image: :class:`.NodeImage`
+
+        :keyword    size: The size of resources allocated to this node. (required)
+        :type       :class: `.NodeSize`
+
+        :keyword    location: Which data center to create all your Spot instances in.
+        :type       location: :class:`.NodeLocation`
+
+        :keyword    keyname: The name of the key pair
+        :type       keyname: ``str``
+
+        :keyword    userdata: User data
+        :type       userdata: ``str``
+
+        :keyword    security_groups: A list of names of security groups to
+                                        assign to the node.
+        :type       security_groups:   ``list``
+
+        :keyword    blockdevicemappings: ``list`` of ``dict`` block device
+                    mappings.
+        :type       blockdevicemappings: ``list`` of ``dict``
+
+        :keyword    iamprofile: Name or ARN of IAM profile
+        :type       iamprofile: ``str``
+
+        :keyword    ebs_optimized: EBS-Optimized if True
+        :type       ebs_optimized: ``bool``
+
+        :keyword    subnet: The subnet to launch the instance into.
+        :type       subnet: :class:`.EC2Subnet`
+        """
+
+        image = kwargs["image"]
+        size = kwargs["size"]
+        params = {
+            'Action': 'RequestSpotInstances',
+            'LaunchSpecification.ImageId': image.id,
+            'LaunchSpecification.InstanceType': size.id
+        }
+
+        if "spot_price" in kwargs:
+            params["SpotPrice"] = str(kwargs["spot_price"])
+
+        if "instance_count" in kwargs:
+            params["InstanceCount"] = str(kwargs["instance_count"])
+
+        if "type" in kwargs:
+            params["Type"] = kwargs["type"]
+
+        if "valid_from" in kwargs:
+            params["ValidFrom"] = kwargs["valid_from"].isoformat()
+
+        if "valid_until" in kwargs:
+            params["ValidUntil"] = kwargs["valid_until"].isoformat()
+
+        if "location" in kwargs:
+            availability_zone = getattr(
+                kwargs["location"], "availability_zone", None)
+            if availability_zone:
+                if availability_zone.region_name != self.region_name:
+                    raise AttributeError('Invalid availability zone: %s'
+                                         % (availability_zone.name))
+                params['LaunchSpecification.Placement.AvailabilityZone'] = \
+                    availability_zone.name
+
+        if 'keyname' in kwargs:
+            params['LaunchSpecification.KeyName'] = kwargs['keyname']
+
+        if 'userdata' in kwargs:
+            userdata = base64.b64encode(b(kwargs['userdata'])).decode('utf-8')
+            params['LaunchSpecification.UserData'] = userdata
+
+        security_groups = kwargs.get('security_groups')
+        if security_groups:
+            if not isinstance(security_groups, (tuple, list)):
+                security_groups = [security_groups]
+
+            for sig in range(len(security_groups)):
+                params['LaunchSpecification.SecurityGroup.%d' % (sig + 1)] = \
+                    security_groups[sig]
+
+        if 'blockdevicemappings' in kwargs:
+            bdm_params = self._get_block_device_mapping_params(
+                block_device_mapping=kwargs['blockdevicemappings'])
+            for key in bdm_params:
+                bdm_params['LaunchSpecification.%s' % (key)] = bdm_params[key]
+                del bdm_params[key]
+            params.update(bdm_params)
+
+        iamprofile = kwargs.get('iamprofile')
+        if iamprofile:
+            if not isinstance(iamprofile, basestring):
+                raise AttributeError('iamprofile not string')
+
+            if iamprofile.startswith('arn:aws:iam:'):
+                params['LaunchSpecification.IamInstanceProfile.Arn'] = iamprofile
+            else:
+                params['LaunchSpecification.IamInstanceProfile.Name'] = iamprofile
+
+        if 'ebs_optimized' in kwargs:
+            params['LaunchSpecification.EbsOptimized'] = kwargs['ebs_optimized']
+
+        if 'subnet' in kwargs:
+            params['LaunchSpecification.SubnetId'] = kwargs['subnet'].id
+
+        obj = self.connection.request(self.path, params=params).object
+        spot_reqs = self._to_spot_requests(obj, 'spotInstanceRequestSet/item')
+
+        if len(spot_reqs) == 1:
+            return spot_reqs[0]
+        else:
+            return spot_reqs
+
+    def ex_cancel_spot_instance_request(self, spot_request):
+        """
+        Cancel the spot request by passing in the spot request object
+
+        :param      spot_request: Spot request which should be used
+        :type       spot_request: :class:`EC2SpotRequest`
+
+        :rtype: ``bool``
+        """
+        params = {'Action': 'CancelSpotInstanceRequests'}
+        params.update(self._pathlist('SpotInstanceRequestId', [spot_request.id]))
+        res = self.connection.request(self.path, params=params).object
+        state = findall(element=res,
+                        xpath='spotInstanceRequestSet/item/state',
+                        namespace=NAMESPACE)[0].text
+        return self.SPOT_REQUEST_STATE_MAP[state] == EC2SpotRequestState.CANCELLED
+
+    def ex_list_spot_requests(self, spot_request_ids=None, filters=None):
+        """
+        List all spot requests
+
+        spot_request_ids parameter is used to filter the list of
+        spot requests that should be returned.
+
+        :param      spot_request_ids: List of ``spot_request.id``
+        :type       spot_request_ids: ``list`` of ``str``
+
+        :param      filters: The filters so that the response includes
+                             information for only certain spot requests.
+        :type       filters: ``dict``
+
+        :rtype: ``list`` of :class:`EC2SpotRequest`
+        """
+
+        params = {'Action': 'DescribeSpotInstanceRequests'}
+
+        if spot_request_ids:
+            params.update(self._pathlist('SpotInstanceRequestId', spot_request_ids))
+
+        if filters:
+            params.update(self._build_filters(filters))
+
+        obj = self.connection.request(self.path, params=params).object
+        return self._to_spot_requests(obj, 'spotInstanceRequestSet/item')
+
+    def _to_spot_requests(self, obj, xpath):
+        return [self._to_spot_request(el)
+                for el in obj.findall(
+                    fixxpath(xpath=xpath, namespace=NAMESPACE))]
+
+    def _to_spot_request(self, element):
+        try:
+            instance_id = findtext(element=element, xpath='instanceId',
+                                   namespace=NAMESPACE)
+        except KeyError:
+            instance_id = None
+
+        spot_instance_request_id = findtext(element=element,
+                                            xpath='spotInstanceRequestId',
+                                            namespace=NAMESPACE)
+        spot_price = findtext(element=element, xpath='spotPrice',
+                              namespace=NAMESPACE)
+        state = self.SPOT_REQUEST_STATE_MAP[findtext(element=element,
+                                                     xpath="state",
+                                                     namespace=NAMESPACE)]
+        status = findtext(element=element, xpath="status/code",
+                          namespace=NAMESPACE)
+        message = findtext(element=element, xpath="status/message",
+                           namespace=NAMESPACE)
+        availability_zone_group = findtext(element=element,
+                                           xpath="availabilityZoneGroup",
+                                           namespace=NAMESPACE)
+        launchSpecification = findall(element=element,
+                                      xpath='launchSpecification',
+                                      namespace=NAMESPACE)[0]
+
+        # Get our extra dictionary
+        extra = self._get_extra_dict(
+            launchSpecification, RESOURCE_EXTRA_ATTRIBUTES_MAP['node'])
+
+        # Add additional properties to our extra dictionary
+        extra['block_device_mapping'] = self._to_device_mappings(launchSpecification)
+        extra['groups'] = self._get_security_groups(launchSpecification)
+
+        return EC2SpotRequest(
+            id=spot_instance_request_id, instance_id=instance_id,
+            spot_price=spot_price, state=state, status=status, message=message,
+            availability_zone_group=availability_zone_group,
+            driver=self.connection.driver, extra=extra)
 
 
 class IdempotentParamError(LibcloudError):

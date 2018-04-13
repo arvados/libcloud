@@ -114,6 +114,17 @@ class EC2Tests(LibcloudTestCase, TestCaseMixin):
         self.assertIn('signature_version', kwargs)
         self.assertEquals('4', kwargs['signature_version'], 'Signature version is not 4 with temporary credentials')
 
+    def test_request_spot_instance(self):
+        image = NodeImage(id='ami-be3adfd7',
+                          name=self.image_name,
+                          driver=self.driver)
+        size = NodeSize('m1.small', 'Small Instance', None, None, None, None,
+                        driver=self.driver)
+        req = self.driver.request_spot_instances(name='foo', image=image, size=size)
+        self.assertEqual(req.id, 'sir-8xki8mdn')
+        self.assertEqual(req.status, 'pending-evaluation')
+        self.assertEqual(float(req.spot_price), 0.006)
+
     def test_create_node(self):
         image = NodeImage(id='ami-be3adfd7',
                           name=self.image_name,
@@ -1337,6 +1348,10 @@ class EC2SAEastTests(EC2Tests):
 
 class EC2MockHttp(MockHttp):
     fixtures = ComputeFileFixtures('ec2')
+
+    def _RequestSpotInstances(self, method, url, body, headers):
+        body = self.fixtures.load('request_spot_instances.xml')
+        return (httplib.OK, body, {}, httplib.responses[httplib.OK])
 
     def _DescribeInstances(self, method, url, body, headers):
         body = self.fixtures.load('describe_instances.xml')
