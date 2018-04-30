@@ -63,6 +63,7 @@ __all__ = [
 
     'EC2NodeLocation',
     'EC2ReservedNode',
+    'EC2SpotNode',
     'EC2SecurityGroup',
     'EC2ImportSnapshotTask',
     'EC2PlacementGroup',
@@ -3372,6 +3373,53 @@ class EC2ReservedNode(Node):
     def __repr__(self):
         return (('<EC2ReservedNode: id=%s>') % (self.id))
 
+
+class EC2SpotNode(Node):
+    """
+    Proxy class for Spot Instances representing an 'empty' Node instance when the
+    spot request isn't fulfilled, and checking the spot request status every time
+    an attribute to get the created instance information, if existing.
+
+    Note: This class is EC2 specific.
+    """
+
+    def __init__(self, id, state, driver, spot_request_id,
+                 size=None, image=None, extra=None):
+        super(EC2SpotNode, self).__init__(id=id, name=None, state=state,
+                                          public_ips=None, private_ips=None,
+                                          driver=driver, extra=extra)
+        self.spot_request_id = spot_request_id
+        # Spot request object cache
+        self._spot_request_timestamp = 0
+        self._spot_request_obj = None
+
+    def __repr__(self):
+        return ('<EC2SpotNode: id=%s>') % (self.id)
+
+    def __getattribute__(self, name):
+        proxyed_attrs = ('id', 'name', 'public_ips', 'private_ips', 'created_at',
+                         'extra')
+        if name in proxyed_attrs and self.__dict__.get(name) is None:
+            # Check if the node was created before returning None
+            req = self._get_spot_request()
+            if req.instance_id is not None:
+                node = self.driver.list_nodes(
+                    ex_filters={'instance-id': req.instance_id})[0]
+                # Populate instance attributes
+                for attr in proxyed_attrs:
+                    self.__setattr__(attr, node.__getattribute__(attr))
+        elif name == 'spot_request':
+            return self._get_spot_request()
+        return super(EC2SpotNode, self).__getattribute__(name)
+
+    def _get_spot_request(self):
+        # Ask for the spot request if needed
+        if self._spot_request_obj is None or \
+            (time.time() - self._spot_request_timestamp) >= 10:
+            self._spot_request_obj = self.driver.ex_list_spot_requests(
+                spot_request_ids=[self.spot_request_id])[0]
+            self._spot_request_timestamp = time.time()
+        return self._spot_request_obj
 
 class EC2SecurityGroup(object):
     """
@@ -7823,63 +7871,35 @@ class EC2NodeDriver(BaseEC2NodeDriver):
                                             secure=secure, host=host,
                                             port=port, **kwargs)
 
-    @classmethod
-    def list_regions(cls):
-        return VALID_EC2_REGIONS
-
-    def request_spot_instances(self, **kwargs):
+    def create_node(self, **kwargs):
         """
-        Create a Spot Instance Request.
+        Create a new EC2 node, either on-demand or spot instance.
 
-        Reference: http://bit.ly/8ZyPSy [docs.amazonwebservices.com]
+        @inherits: :class:`BaseEC2NodeDriver.create_node`
 
-        :keyword    spot_price: The spot price to bid.
-        :type       spot_price: ``str``
+        :keyword    ex_spot_price: The spot price to bid. If None, an on-demand
+                                   instance will be requested (default behavior).
+                                   If 0, the default on-demand price will be used
+                                   to request the spot instance.
+        :type       ex_spot_price: ``str``
 
-        :keyword    instance_count: The maximum number of Spot Instances to launch.
-        :type       instance_count: ``int``
+        :keyword    ex_instance_count: The maximum number of Spot Instances to launch.
+        :type       ex_instance_count: ``int``
 
-        :keyword    type: The Spot instance request type ("one-time" | "persistent").
-        :type       type: ``str``
+        :keyword    ex_spot_req_type: The spot instance request type
+                                      ("one-time" | "persistent"). By default,
+                                      a one-time request will be used.
+        :type       ex_spot_req_type: ``str``
 
-        :keyword    valid_from: The start date of the request.
-        :type       valid_from: ``datetime.datetime``
+        :keyword    ex_valid_from: The start date of the request.
+        :type       ex_valid_from: ``datetime.datetime``
 
-        :keyword    valid_until: The end date of the request.
-        :type       valid_until: ``datetime.datetime``
-
-        :keyword    image: OS Image to boot on node. (required)
-        :type       image: :class:`.NodeImage`
-
-        :keyword    size: The size of resources allocated to this node. (required)
-        :type       :class: `.NodeSize`
-
-        :keyword    location: Which data center to create all your Spot instances in.
-        :type       location: :class:`.NodeLocation`
-
-        :keyword    keyname: The name of the key pair
-        :type       keyname: ``str``
-
-        :keyword    userdata: User data
-        :type       userdata: ``str``
-
-        :keyword    security_groups: A list of names of security groups to
-                                        assign to the node.
-        :type       security_groups:   ``list``
-
-        :keyword    blockdevicemappings: ``list`` of ``dict`` block device
-                    mappings.
-        :type       blockdevicemappings: ``list`` of ``dict``
-
-        :keyword    iamprofile: Name or ARN of IAM profile
-        :type       iamprofile: ``str``
-
-        :keyword    ebs_optimized: EBS-Optimized if True
-        :type       ebs_optimized: ``bool``
-
-        :keyword    subnet: The subnet to launch the instance into.
-        :type       subnet: :class:`.EC2Subnet`
+        :keyword    ex_valid_until: The end date of the request.
+        :type       ex_valid_until: ``datetime.datetime``
         """
+
+        if kwargs.get('ex_spot_price') is None:
+            return super(EC2NodeDriver, self).create_node(**kwargs)
 
         image = kwargs["image"]
         size = kwargs["size"]
@@ -7889,20 +7909,20 @@ class EC2NodeDriver(BaseEC2NodeDriver):
             'LaunchSpecification.InstanceType': size.id
         }
 
-        if "spot_price" in kwargs:
-            params["SpotPrice"] = str(kwargs["spot_price"])
+        if kwargs["ex_spot_price"] != 0 or kwargs["ex_spot_price"] != "0":
+            params["SpotPrice"] = str(kwargs["ex_spot_price"])
 
-        if "instance_count" in kwargs:
-            params["InstanceCount"] = str(kwargs["instance_count"])
+        if "ex_instance_count" in kwargs:
+            params["InstanceCount"] = str(kwargs["ex_instance_count"])
 
-        if "type" in kwargs:
-            params["Type"] = kwargs["type"]
+        if "ex_spot_req_type" in kwargs:
+            params["Type"] = kwargs["ex_spot_req_type"]
 
-        if "valid_from" in kwargs:
-            params["ValidFrom"] = kwargs["valid_from"].isoformat()
+        if "ex_valid_from" in kwargs:
+            params["ValidFrom"] = kwargs["ex_valid_from"].isoformat()
 
-        if "valid_until" in kwargs:
-            params["ValidUntil"] = kwargs["valid_until"].isoformat()
+        if "ex_valid_until" in kwargs:
+            params["ValidUntil"] = kwargs["ex_valid_until"].isoformat()
 
         if "location" in kwargs:
             availability_zone = getattr(
@@ -7914,14 +7934,14 @@ class EC2NodeDriver(BaseEC2NodeDriver):
                 params['LaunchSpecification.Placement.AvailabilityZone'] = \
                     availability_zone.name
 
-        if 'keyname' in kwargs:
-            params['LaunchSpecification.KeyName'] = kwargs['keyname']
+        if 'ex_keyname' in kwargs:
+            params['LaunchSpecification.KeyName'] = kwargs['ex_keyname']
 
-        if 'userdata' in kwargs:
-            userdata = base64.b64encode(b(kwargs['userdata'])).decode('utf-8')
+        if 'ex_userdata' in kwargs:
+            userdata = base64.b64encode(b(kwargs['ex_userdata'])).decode('utf-8')
             params['LaunchSpecification.UserData'] = userdata
 
-        security_groups = kwargs.get('security_groups')
+        security_groups = kwargs.get('ex_security_groups')
         if security_groups:
             if not isinstance(security_groups, (tuple, list)):
                 security_groups = [security_groups]
@@ -7930,15 +7950,15 @@ class EC2NodeDriver(BaseEC2NodeDriver):
                 params['LaunchSpecification.SecurityGroup.%d' % (sig + 1)] = \
                     security_groups[sig]
 
-        if 'blockdevicemappings' in kwargs:
+        if 'ex_blockdevicemappings' in kwargs:
             bdm_params = self._get_block_device_mapping_params(
-                block_device_mapping=kwargs['blockdevicemappings'])
+                block_device_mapping=kwargs['ex_blockdevicemappings'])
             for key in bdm_params:
                 bdm_params['LaunchSpecification.%s' % (key)] = bdm_params[key]
                 del bdm_params[key]
             params.update(bdm_params)
 
-        iamprofile = kwargs.get('iamprofile')
+        iamprofile = kwargs.get('ex_iamprofile')
         if iamprofile:
             if not isinstance(iamprofile, basestring):
                 raise AttributeError('iamprofile not string')
@@ -7948,19 +7968,31 @@ class EC2NodeDriver(BaseEC2NodeDriver):
             else:
                 params['LaunchSpecification.IamInstanceProfile.Name'] = iamprofile
 
-        if 'ebs_optimized' in kwargs:
-            params['LaunchSpecification.EbsOptimized'] = kwargs['ebs_optimized']
+        if 'ex_ebs_optimized' in kwargs:
+            params['LaunchSpecification.EbsOptimized'] = kwargs['ex_ebs_optimized']
 
-        if 'subnet' in kwargs:
-            params['LaunchSpecification.SubnetId'] = kwargs['subnet'].id
+        if 'ex_subnet' in kwargs:
+            params['LaunchSpecification.SubnetId'] = kwargs['ex_subnet'].id
 
         obj = self.connection.request(self.path, params=params).object
         spot_reqs = self._to_spot_requests(obj, 'spotInstanceRequestSet/item')
 
         if len(spot_reqs) == 1:
-            return spot_reqs[0]
+            return EC2SpotNode(None, None, self, spot_reqs[0].id)
         else:
-            return spot_reqs
+            return [EC2SpotNode(None, None, self, req.id) for req in spot_reqs]
+
+    def destroy_node(self, node):
+        # Cancel spot request if it isn't yet fulfilled.
+        if isinstance(node, EC2SpotNode) and node.id is None:
+            # If cached value is stale and the node is really running,
+            # cancelling its request will terminate it ayways.
+            return self.ex_cancel_spot_instance_request(node.spot_request)
+        super(EC2NodeDriver, self).destroy_node(node)
+
+    @classmethod
+    def list_regions(cls):
+        return VALID_EC2_REGIONS
 
     def ex_cancel_spot_instance_request(self, spot_request):
         """

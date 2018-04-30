@@ -114,16 +114,16 @@ class EC2Tests(LibcloudTestCase, TestCaseMixin):
         self.assertIn('signature_version', kwargs)
         self.assertEquals('4', kwargs['signature_version'], 'Signature version is not 4 with temporary credentials')
 
-    def test_request_spot_instance(self):
-        image = NodeImage(id='ami-be3adfd7',
-                          name=self.image_name,
-                          driver=self.driver)
-        size = NodeSize('m1.small', 'Small Instance', None, None, None, None,
-                        driver=self.driver)
-        req = self.driver.request_spot_instances(name='foo', image=image, size=size)
-        self.assertEqual(req.id, 'sir-8xki8mdn')
-        self.assertEqual(req.status, 'pending-evaluation')
-        self.assertEqual(float(req.spot_price), 0.006)
+    # def test_request_spot_instance(self):
+    #     image = NodeImage(id='ami-be3adfd7',
+    #                       name=self.image_name,
+    #                       driver=self.driver)
+    #     size = NodeSize('m1.small', 'Small Instance', None, None, None, None,
+    #                     driver=self.driver)
+    #     req = self.driver.request_spot_instances(name='foo', image=image, size=size)
+    #     self.assertEqual(req.id, 'sir-8xki8mdn')
+    #     self.assertEqual(req.status, 'pending-evaluation')
+    #     self.assertEqual(float(req.spot_price), 0.006)
 
     def test_create_node(self):
         image = NodeImage(id='ami-be3adfd7',
