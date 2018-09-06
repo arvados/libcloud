@@ -352,6 +352,66 @@ INSTANCE_TYPES = {
             'cpu': 96
         }
     },
+    'm5d.large': {
+        'id': 'm5d.large',
+        'name': 'Large Instance',
+        'ram': GiB(8),
+        'disk': 75,
+        'bandwidth': None,
+        'extra': {
+            'cpu': 2
+        }
+    },
+    'm5d.xlarge': {
+        'id': 'm5d.xlarge',
+        'name': 'Extra Large Instance',
+        'ram': GiB(16),
+        'disk': 150,
+        'bandwidth': None,
+        'extra': {
+            'cpu': 4
+        }
+    },
+    'm5d.2xlarge': {
+        'id': 'm5d.2xlarge',
+        'name': 'Double Extra Large Instance',
+        'ram': GiB(32),
+        'disk': 300,
+        'bandwidth': None,
+        'extra': {
+            'cpu': 8
+        }
+    },
+    'm5d.4xlarge': {
+        'id': 'm5d.4xlarge',
+        'name': 'Quadruple Extra Large Instance',
+        'ram': GiB(64),
+        'disk': 600,
+        'bandwidth': None,
+        'extra': {
+            'cpu': 16
+        }
+    },
+    'm5d.12xlarge': {
+        'id': 'm5d.12xlarge',
+        'name': '12 Extra Large Instance',
+        'ram': GiB(192),
+        'disk': 1800,
+        'bandwidth': None,
+        'extra': {
+            'cpu': 48
+        }
+    },
+    'm5d.24xlarge': {
+        'id': 'm5d.24xlarge',
+        'name': '24 Extra Large Instance',
+        'ram': GiB(384),
+        'disk': 3600,
+        'bandwidth': None,
+        'extra': {
+            'cpu': 96
+        }
+    },
     'cg1.4xlarge': {
         'id': 'cg1.4xlarge',
         'name': 'Cluster GPU Quadruple Extra Large Instance',
@@ -612,6 +672,66 @@ INSTANCE_TYPES = {
         'name': 'Compute Optimized Eighteen Extra Large Instance',
         'ram': GiB(144),
         'disk': 0,  # EBS only
+        'bandwidth': None,
+        'extra': {
+            'cpu': 72
+        }
+    },
+    'c5d.large': {
+        'id': 'c5d.large',
+        'name': 'Compute Optimized Large Instance',
+        'ram': GiB(4),
+        'disk': 50,
+        'bandwidth': None,
+        'extra': {
+            'cpu': 2
+        }
+    },
+    'c5d.xlarge': {
+        'id': 'c5d.xlarge',
+        'name': 'Compute Optimized Extra Large Instance',
+        'ram': GiB(8),
+        'disk': 100,
+        'bandwidth': None,
+        'extra': {
+            'cpu': 4
+        }
+    },
+    'c5d.2xlarge': {
+        'id': 'c5d.2xlarge',
+        'name': 'Compute Optimized Double Extra Large Instance',
+        'ram': GiB(16),
+        'disk': 200,
+        'bandwidth': None,
+        'extra': {
+            'cpu': 8
+        }
+    },
+    'c5d.4xlarge': {
+        'id': 'c5d.4xlarge',
+        'name': 'Compute Optimized Quadruple Extra Large Instance',
+        'ram': GiB(32),
+        'disk': 400,
+        'bandwidth': None,
+        'extra': {
+            'cpu': 16
+        }
+    },
+    'c5d.9xlarge': {
+        'id': 'c5d.9xlarge',
+        'name': 'Compute Optimized Nonuple Extra Large Instance',
+        'ram': GiB(72),
+        'disk': 900,
+        'bandwidth': None,
+        'extra': {
+            'cpu': 36
+        }
+    },
+    'c5d.18xlarge': {
+        'id': 'c5d.18xlarge',
+        'name': 'Compute Optimized Eighteen Extra Large Instance',
+        'ram': GiB(144),
+        'disk': 1800,
         'bandwidth': None,
         'extra': {
             'cpu': 72
@@ -1570,12 +1690,36 @@ REGION_DETAILS = {
             'c4.2xlarge',
             'c4.4xlarge',
             'c4.8xlarge',
+            'c5.large',
+            'c5.xlarge',
+            'c5.2xlarge',
+            'c5.4xlarge',
+            'c5.9xlarge',
+            'c5.18xlarge',
+            'c5d.large',
+            'c5d.xlarge',
+            'c5d.2xlarge',
+            'c5d.4xlarge',
+            'c5d.9xlarge',
+            'c5d.18xlarge',
             'm4.large',
             'm4.xlarge',
             'm4.2xlarge',
             'm4.4xlarge',
             'm4.10xlarge',
             'm4.16xlarge',
+            'm5.large',
+            'm5.xlarge',
+            'm5.2xlarge',
+            'm5.4xlarge',
+            'm5.12xlarge',
+            'm5.24xlarge',
+            'm5d.large',
+            'm5d.xlarge',
+            'm5d.2xlarge',
+            'm5d.4xlarge',
+            'm5d.12xlarge',
+            'm5d.24xlarge',
             'c3.8xlarge',
             'i2.xlarge',
             'i2.2xlarge',
