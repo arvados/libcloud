@@ -761,6 +761,9 @@ class AzureNodeDriver(NodeDriver):
                     node.id,
                     params={"api-version": RESOURCE_API_VERSION})
                 retries -= 1
+                if retries == 0:
+                    # Node still there.
+                    return False
             except BaseHTTPError as h:
                 if h.code in (204, 404):
                     # Node is gone

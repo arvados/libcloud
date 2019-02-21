@@ -230,6 +230,12 @@ class AzureNodeDriverTests(LibcloudTestCase):
         def error(e, **kwargs):
             raise e(**kwargs)
         node = self.driver.list_nodes()[0]
+        AzureMockHttp.responses = [
+            # 202 - The delete will happen asynchronously
+            lambda f: error(BaseHTTPError, code=202, message='Deleting'),
+            # 404 means node is gone
+            lambda f: error(BaseHTTPError, code=404, message='Not found'),
+        ]
         err = BaseHTTPError(code=400, message='[NicInUse] Cannot destroy')
         with mock.patch.object(self.driver, 'ex_destroy_nic') as m:
             m.side_effect = [err] * 5 + [True]  # 5 errors before a success
@@ -237,6 +243,13 @@ class AzureNodeDriverTests(LibcloudTestCase):
             self.assertTrue(ret)
             self.assertEqual(6, m.call_count)  # 6th call was a success
 
+        AzureMockHttp.responses = [
+            # 202 - The delete will happen asynchronously
+            lambda f: error(BaseHTTPError, code=202, message='Deleting'),
+            # 404 means node is gone
+            lambda f: error(BaseHTTPError, code=404, message='Not found'),
+        ]
+        with mock.patch.object(self.driver, 'ex_destroy_nic') as m:
             m.side_effect = [err] * 10 + [True]  # 10 errors before a success
             with self.assertRaises(BaseHTTPError):
                 self.driver.destroy_node(node)
