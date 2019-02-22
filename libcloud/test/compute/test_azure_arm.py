@@ -205,6 +205,25 @@ class AzureNodeDriverTests(LibcloudTestCase):
         self.assertTrue(ret)
 
     @mock.patch('time.sleep', return_value=None)
+    def test_destroy_node__retry_exhausted(self, time_sleep_mock):
+        def error(e, **kwargs):
+            raise e(**kwargs)
+        node = self.driver.list_nodes()[0]
+        AzureMockHttp.responses = [
+            # 202 - The delete will happen asynchronously
+            lambda f: error(BaseHTTPError, code=202, message='Deleting')
+        ] + [
+            # 200 means the node is still here
+            lambda f: (httplib.OK, None, {}, 'OK')
+        ] * 12 + [
+            # 404 means node is gone - 4th retry: success!
+            lambda f: error(BaseHTTPError, code=404, message='Not found'),
+        ]
+        ret = self.driver.destroy_node(node)
+        self.assertFalse(ret)
+        self.assertEqual(10, time_sleep_mock.call_count)  # Tried 10 times and gave up
+
+    @mock.patch('time.sleep', return_value=None)
     def test_destroy_node__retry(self, time_sleep_mock):
         def error(e, **kwargs):
             raise e(**kwargs)
